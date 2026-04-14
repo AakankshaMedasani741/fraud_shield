@@ -40,7 +40,7 @@ export default function Home() {
     setLoading(true)
     setError('')
     try {
-      const { data } = await axios.post('http://localhost:8000/api/predict', {
+      const { data } = await axios.post('https://fraud-shield-backend-df7a.onrender.com/api/predict', {
         amount:   parseFloat(formData.amount),
         merchant: formData.merchant,
         location: formData.location,
