@@ -15,14 +15,14 @@ app.add_middleware(
 )
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "../ml/model/fraud_model.pkl")
-META_PATH  = os.path.join(os.path.dirname(__file__), "../ml/model/meta.pkl")
+META_PATH = os.path.join(os.path.dirname(__file__), "../ml/model/meta.pkl")
 
 try:
     with open(MODEL_PATH, "rb") as f:
         model = pickle.load(f)
     with open(META_PATH, "rb") as f:
         meta = pickle.load(f)
-    print("✅ Model loaded")
+    print("Model loaded")
 except:
     model = None
     meta = None
@@ -43,7 +43,7 @@ class PredictionOutput(BaseModel):
 
 @app.get("/")
 def root():
-    return {"message": "Fraud Shield API running"}
+    return {"message": "running"}
 
 @app.get("/health")
 def health():
@@ -53,29 +53,15 @@ def health():
 def predict(tx: TransactionInput):
     if model is None:
         raise HTTPException(status_code=503, detail="Model not loaded.")
-    
     def enc(val, opts):
         try: return opts.index(val)
         except: return 0
-
-    features = np.array([[
-        tx.amount,
-        enc(tx.merchant, meta["merchant_types"]),
-        enc(tx.location, meta["locations"]),
-        enc(tx.time, meta["times"]),
-        enc(tx.device, meta["devices"])
-    ]])
-
+    features = np.array([[tx.amount, enc(tx.merchant, meta["merchant_types"]), enc(tx.location, meta["locations"]), enc(tx.time, meta["times"]), enc(tx.device, meta["devices"])]])
     prediction = model.predict(features)[0]
     proba = model.predict_proba(features)[0]
     is_fraud = bool(prediction == 1)
     risk_score = int(round(float(proba[1]) * 100))
     confidence = int(round(max(proba) * 100))
     verdict = "FRAUD" if is_fraud else "SAFE"
-
-    if is_fraud:
-        reason = f"Risk score {risk_score}/100 — transaction flagged as fraudulent based on amount, location, device and time patterns."
-    else:
-        reason = f"Risk score {risk_score}/100 — transaction matches legitimate behaviour profile."
-
+    reason = f"Risk score {risk_score}/100 - {'fraudulent' if is_fraud else 'legitimate'} transaction detected."
     return PredictionOutput(verdict=verdict, is_fraud=is_fraud, risk_score=risk_score, confidence=confidence, reason=reason)
